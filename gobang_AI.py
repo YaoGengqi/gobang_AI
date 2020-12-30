@@ -1,24 +1,23 @@
 from graphics import *
 from math import *
 import numpy as np
+import time
 
-GRID_WIDTH = 40
 
-COLUMN = 15
-ROW = 15
+GRID_WIDTH = 35 # 棋盘参数设置
+COLUMN = 20
+ROW = 20
+RATIO = 1  # 进攻的系数   大于1 进攻型，  小于1 防守型
+DEPTH = 3  # 搜索深度   只能是单数。  如果是负数， 评估函数评估的的是自己多少步之后的自己得分的最大值，并不意味着是最好的棋， 评估函数的问题
 
 list1 = []  # AI
 list2 = []  # human
 list3 = []  # all
-
 list_all = []  # 整个棋盘的点
 next_point = [0, 0]  # AI下一步最应该下的位置
 
-ratio = 1  # 进攻的系数   大于1 进攻型，  小于1 防守型
-DEPTH = 3  # 搜索深度   只能是单数。  如果是负数， 评估函数评估的的是自己多少步之后的自己得分的最大值，并不意味着是最好的棋， 评估函数的问题
 
-
-# 棋型的评估分数
+# 棋型的评估分数,其中数字序列表示一条直线上已经下的棋子
 shape_score = [(50, (0, 1, 1, 0, 0)),
                (50, (0, 0, 1, 1, 0)),
                (200, (1, 1, 0, 1, 0)),
@@ -35,8 +34,9 @@ shape_score = [(50, (0, 1, 1, 0, 0)),
                (50000, (0, 1, 1, 1, 1, 0)),
                (99999999, (1, 1, 1, 1, 1))]
 
-
+# 计算下一步的最优选择
 def ai():
+
     global cut_count   # 统计剪枝次数
     cut_count = 0
     global search_count   # 统计搜索次数
@@ -44,17 +44,21 @@ def ai():
     negamax(True, DEPTH, -99999999, 99999999)
     print("本次共剪枝次数：" + str(cut_count))
     print("本次共搜索次数：" + str(search_count))
+    print("电脑落子坐标为：" + str(next_point))
     return next_point[0], next_point[1]
 
-
 # 负值极大算法搜索 alpha + beta剪枝
-def negamax(is_ai, depth, alpha, beta):
+def negamax(is_ai, depth, alpha, beta):     # 初始alpha为-99999999， beta为99999999
+
     # 游戏是否结束 | | 探索的递归深度是否到边界
     if game_win(list1) or game_win(list2) or depth == 0:
         return evaluation(is_ai)
 
-    blank_list = list(set(list_all).difference(set(list3)))
-    order(blank_list)   # 搜索顺序排序  提高剪枝效率
+    # blank_list = list(set(list_all).difference(set(list3)))
+    # order(blank_list)   # 搜索顺序排序  提高剪枝效率
+
+    blank_list = order()
+
     # 遍历每一个候选步
     for next_step in blank_list:
 
@@ -79,14 +83,17 @@ def negamax(is_ai, depth, alpha, beta):
         list3.remove(next_step)
 
         if value > alpha:
+            # if alpha < -999999:
+            #     print(str(value) + "\talpha:\t" + str(alpha) + "\tbeta:\t" + str(beta))
+            # else:
+            #     print(str(value) + "\talpha:\t" + str(alpha) + "\t\tbeta:\t" + str(beta))
 
-            print(str(value) + "alpha:" + str(alpha) + "beta:" + str(beta))
-            print(list3)
             if depth == DEPTH:
                 next_point[0] = next_step[0]
                 next_point[1] = next_step[1]
             # alpha + beta剪枝点
             if value >= beta:
+                # 剪枝次数加一
                 global cut_count
                 cut_count += 1
                 return beta
@@ -94,21 +101,38 @@ def negamax(is_ai, depth, alpha, beta):
 
     return alpha
 
+def order():
+    pt_list = []
+    min_left = 100
+    min_bottom = 100
+    max_right = -100
+    max_up = -100
+    for item in list3:
+        min_left = min(min_left, item[0])
+        min_bottom = min(min_bottom, item[1])
+        max_right = max(max_right, item[0])
+        max_up = max(max_up, item[1])
 
-#  离最后落子的邻居位置最有可能是最优点
-def order(blank_list):
+    for x in range(min_left-2, max_right+2):
+        for y in range(min_bottom-2, max_up+2):
+            if x >=0 and x < COLUMN+1 and y >=0 and y < ROW+1 and (x,y) not in list3:
+                pt_list.append((x,y))
+
     last_pt = list3[-1]
-    for item in blank_list:
-        for i in range(-1, 2):
+    for item in pt_list:
+        for i in range(-1, 2): # -1，0，+1
             for j in range(-1, 2):
                 if i == 0 and j == 0:
                     continue
-                if (last_pt[0] + i, last_pt[1] + j) in blank_list:
-                    blank_list.remove((last_pt[0] + i, last_pt[1] + j))
-                    blank_list.insert(0, (last_pt[0] + i, last_pt[1] + j))
+                if (last_pt[0] + i, last_pt[1] + j) in pt_list:
+                    # 将上一个落子周围的空位纳入优先考虑
+                    pt_list.remove((last_pt[0] + i, last_pt[1] + j))
+                    pt_list.insert(0, (last_pt[0] + i, last_pt[1] + j))
 
+    return pt_list
 
-def has_neightnor(pt):
+# 用于计算周围是否存在棋子
+def has_neightnor(pt):  
     for i in range(-1, 2):
         for j in range(-1, 2):
             if i == 0 and j == 0:
@@ -117,9 +141,11 @@ def has_neightnor(pt):
                 return True
     return False
 
-
 # 评估函数
 def evaluation(is_ai):
+    '''
+    用于评估分数，其中分数由棋盘上的所有棋子的分布（存在与shape_score中的棋形分布）的分数相加。
+    '''
     total_score = 0
 
     if is_ai:
@@ -135,6 +161,8 @@ def evaluation(is_ai):
     for pt in my_list:
         m = pt[0]
         n = pt[1]
+
+        #分别计算其在水平、竖直、及两个对角线上的分数
         my_score += cal_score(m, n, 0, 1, enemy_list, my_list, score_all_arr)
         my_score += cal_score(m, n, 1, 0, enemy_list, my_list, score_all_arr)
         my_score += cal_score(m, n, 1, 1, enemy_list, my_list, score_all_arr)
@@ -151,13 +179,13 @@ def evaluation(is_ai):
         enemy_score += cal_score(m, n, 1, 1, my_list, enemy_list, score_all_arr_enemy)
         enemy_score += cal_score(m, n, -1, 1, my_list, enemy_list, score_all_arr_enemy)
 
-    total_score = my_score - enemy_score*ratio*0.1
+    total_score = my_score - enemy_score*RATIO*0.1
 
     return total_score
 
-
-# 每个方向上的分值计算
 def cal_score(m, n, x_decrict, y_derice, enemy_list, my_list, score_all_arr):
+    # 每个方向上的分值计算
+    
     add_score = 0  # 加分项
     # 在一个方向上， 只取最大的得分项
     max_score_shape = (0, None)
@@ -169,23 +197,25 @@ def cal_score(m, n, x_decrict, y_derice, enemy_list, my_list, score_all_arr):
                 return 0
 
     # 在落子点 左右方向上循环查找得分形状
-    for offset in range(-5, 1):
-        # offset = -2
+    for offset in range(-5, 1): # -5 -4 -3 -2 -1 0 
+        '''
+        比如说，在水平线上有11个点，此时的布局为 0 0 0 1 2 1 1 2 0 0 0(0表示无，1表示黑子，2表示白子)，每次遍历六个位置并记录
+        '''
         pos = []
-        for i in range(0, 6):
+        for i in range(0, 6):   # 0 1 2 3 4 5
             if (m + (i + offset) * x_decrict, n + (i + offset) * y_derice) in enemy_list:
-                pos.append(2)
+                pos.append(2)   # 敌方棋子
             elif (m + (i + offset) * x_decrict, n + (i + offset) * y_derice) in my_list:
-                pos.append(1)
+                pos.append(1)   # 我方棋子
             else:
-                pos.append(0)
+                pos.append(0)   # 无
         tmp_shap5 = (pos[0], pos[1], pos[2], pos[3], pos[4])
         tmp_shap6 = (pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
 
+
+        # 只记录同一个方向上最大的棋形
         for (score, shape) in shape_score:
             if tmp_shap5 == shape or tmp_shap6 == shape:
-                if tmp_shap5 == (1,1,1,1,1):
-                    print('wwwwwwwwwwwwwwwwwwwwwwwwwww')
                 if score > max_score_shape[0]:
                     max_score_shape = (score, ((m + (0+offset) * x_decrict, n + (0+offset) * y_derice),
                                                (m + (1+offset) * x_decrict, n + (1+offset) * y_derice),
@@ -193,7 +223,7 @@ def cal_score(m, n, x_decrict, y_derice, enemy_list, my_list, score_all_arr):
                                                (m + (3+offset) * x_decrict, n + (3+offset) * y_derice),
                                                (m + (4+offset) * x_decrict, n + (4+offset) * y_derice)), (x_decrict, y_derice))
 
-    # 计算两个形状相交， 如两个3活 相交， 得分增加 一个子的除外
+    # 计算两个形状相交
     if max_score_shape[1] is not None:
         for item in score_all_arr:
             for pt1 in item[1]:
@@ -205,8 +235,12 @@ def cal_score(m, n, x_decrict, y_derice, enemy_list, my_list, score_all_arr):
 
     return add_score + max_score_shape[0]
 
-
 def game_win(list):
+    '''
+    用于判断是否取胜
+    param： list1 or list2
+    '''
+
     for m in range(COLUMN):
         for n in range(ROW):
 
@@ -224,42 +258,44 @@ def game_win(list):
                 return True
     return False
 
-
 def gobangwin():
-    win = GraphWin("this is a gobang game", GRID_WIDTH * COLUMN, GRID_WIDTH * ROW)
+    '''
+    设置界面， 包括长宽以及行列
+    '''
+    win = GraphWin("五子棋", GRID_WIDTH * COLUMN, GRID_WIDTH * ROW) # 设置长宽
     win.setBackground("yellow")
-    i1 = 0
 
+    i1 = 0
     while i1 <= GRID_WIDTH * COLUMN:
         l = Line(Point(i1, 0), Point(i1, GRID_WIDTH * COLUMN))
         l.draw(win)
         i1 = i1 + GRID_WIDTH
-    i2 = 0
 
+    i2 = 0
     while i2 <= GRID_WIDTH * ROW:
         l = Line(Point(0, i2), Point(GRID_WIDTH * ROW, i2))
         l.draw(win)
         i2 = i2 + GRID_WIDTH
     return win
 
-
 def main():
-    win = gobangwin()
+    
+
+    win = gobangwin()   # 界面
 
     for i in range(COLUMN+1):
         for j in range(ROW+1):
-            list_all.append((i, j))
+            list_all.append((i, j)) #  将所有棋盘的坐标增加到list_all
 
     change = 0
     g = 0
-    m = 0
-    n = 0
 
     while g == 0:
 
-        if change % 2 == 1:
+        if change % 2 == 1: # 玩家执黑，反之电脑执黑
+            time1 = time.time()
+            
             pos = ai()
-
             if pos in list3:
                 message = Text(Point(200, 200), "不可用的位置" + str(pos[0]) + "," + str(pos[1]))
                 message.draw(win)
@@ -277,6 +313,8 @@ def main():
                 message.draw(win)
                 g = 1
             change = change + 1
+
+            print("执行时间为：" + str(time.time() - time1))
 
         else:
             p2 = win.getMouse()
@@ -302,5 +340,6 @@ def main():
     win.getMouse()
     win.close()
 
+if __name__ == "__main__":
 
-main()
+    main()
