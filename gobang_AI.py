@@ -102,36 +102,39 @@ def negamax(is_ai, depth, alpha, beta):     # 初始alpha为-99999999， beta为
     return alpha
 
 def order():
+
     pt_list = []
     min_left = 100
     min_bottom = 100
     max_right = -100
     max_up = -100
+
     for item in list3:
         min_left = min(min_left, item[0])
-        min_bottom = min(min_bottom, item[1])
+        min_bottom = min(min_bottom
+        item[1])
         max_right = max(max_right, item[0])
         max_up = max(max_up, item[1])
 
-    for x in range(min_left-2, max_right+2):
-        for y in range(min_bottom-2, max_up+2):
+    for x in range(min_left-1, max_right+2):
+        for y in range(min_bottom-1, max_up+2):
             if x >=0 and x < COLUMN+1 and y >=0 and y < ROW+1 and (x,y) not in list3:
-                pt_list.append((x,y))
+                if has_neightnor((x, y)):
+                    pt_list.append((x, y))
 
     last_pt = list3[-1]
-    for item in pt_list:
-        for i in range(-1, 2): # -1，0，+1
-            for j in range(-1, 2):
-                if i == 0 and j == 0:
-                    continue
-                if (last_pt[0] + i, last_pt[1] + j) in pt_list:
-                    # 将上一个落子周围的空位纳入优先考虑
-                    pt_list.remove((last_pt[0] + i, last_pt[1] + j))
-                    pt_list.insert(0, (last_pt[0] + i, last_pt[1] + j))
+    for i in range(-1, 2): # -1，0，+1
+        for j in range(-1, 2):
+            if i == 0 and j == 0:
+                continue
+            if (last_pt[0] + i, last_pt[1] + j) in pt_list:
+                # 将上一个落子周围的空位纳入优先考虑
+                pt_list.remove((last_pt[0] + i, last_pt[1] + j))
+                pt_list.insert(0, (last_pt[0] + i, last_pt[1] + j))
 
     return pt_list
 
-# 用于计算周围是否存在棋子
+# 用于计算周围一圈是否存在棋子
 def has_neightnor(pt):  
     for i in range(-1, 2):
         for j in range(-1, 2):
